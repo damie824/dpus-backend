@@ -82,7 +82,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       profile: user.profile,
-      autority: user.role.autority,
+      authority: user.role ? user.role.authority : 0,
     };
     return this.jwtService.signAsync(payload);
   }
@@ -93,7 +93,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       profile: user.profile,
-      autority: user.role.autority,
+      authority: user.role ? user.role.authority : 0,
     };
 
     return this.jwtService.signAsync(

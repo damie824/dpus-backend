@@ -10,7 +10,7 @@ export class Roles {
   title: string;
 
   @Column({ default: 0 })
-  autority: number;
+  authority: number;
 
   @OneToMany(() => User, (user) => user.role)
   users: User[];

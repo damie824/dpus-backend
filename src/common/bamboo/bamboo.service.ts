@@ -23,24 +23,55 @@ export class BambooService {
     return bamboos;
   }
 
-  async getBamboo(id: number): Promise<BambooPost> {
+  async getBamboo(id: number) {
     const bambooRepository = this.dataSource.getRepository(BambooPost);
+    const userRepository = this.dataSource.getRepository(User);
+    const commentRepository = this.dataSource.getRepository(BambooComments);
+    const likeRepository = this.dataSource.getRepository(BambooLike);
+
     let currentBamboo = await bambooRepository.findOneBy({
-      id: id,
+      id,
     });
+
+    let currentuser = 0;
+
+    if (!currentBamboo.anonymity) {
+      const foundUser = await userRepository.findOneBy({
+        id: currentBamboo.author?.id,
+      });
+      currentuser = foundUser.id;
+    }
+
+    const comments = await commentRepository.find({
+      relations: {
+        post: true,
+      },
+      where: {
+        post: {
+          id: currentBamboo.id,
+        },
+      },
+    });
+
+    const likes = await likeRepository.countBy({
+      post: {
+        id: currentBamboo.id,
+      },
+    });
+
     await bambooRepository.update(
       { id: id },
       {
         viewd: currentBamboo.viewd + 1,
       },
     );
-    return currentBamboo;
+    return { ...currentBamboo, user: currentuser, comments, likes };
   }
 
   async uploadPost(
     uploadDto: PostBambooDto,
     userId: number,
-  ): Promise<BambooPost> {
+  ): Promise<{ message: string }> {
     try {
       const userRepository = this.dataSource.getRepository(User);
       const bambooRepository = this.dataSource.getRepository(BambooPost);
@@ -52,14 +83,14 @@ export class BambooService {
       const newPost = bambooRepository.create({
         title: uploadDto.title,
         contents: uploadDto.contents,
-        createdAt: Date.now(),
+        createdAt: new Date(),
         author: author,
         anonymity: uploadDto.anonymity,
       });
 
       bambooRepository.save(newPost);
 
-      return newPost;
+      return { message: 'done.' };
     } catch (error) {
       this.logger.warn(error.message);
     }
@@ -68,7 +99,8 @@ export class BambooService {
   async commentBamboo(
     commentBambooDto: CommentBambooDto,
     userId: number,
-  ): Promise<BambooComments> {
+    parent?: number,
+  ): Promise<{ message: string }> {
     try {
       const bambooRepository = this.dataSource.getRepository(BambooPost);
       const commentRepository = this.dataSource.getRepository(BambooComments);
@@ -89,17 +121,21 @@ export class BambooService {
       const newComment = commentRepository.create({
         post: currentPost,
         contents: commentBambooDto.contents,
+        parents: !parent ? null : parent,
       });
 
       await commentRepository.save(newComment);
 
-      return newComment;
+      return { message: 'done' };
     } catch (error) {
       this.logger.warn(error.message);
     }
   }
 
-  async like(likeDto: LikeBambooDto, userId: number): Promise<BambooLike> {
+  async like(
+    likeDto: LikeBambooDto,
+    userId: number,
+  ): Promise<{ message: string }> {
     try {
       const userRepository = this.dataSource.getRepository(User);
       const likeRepository = this.dataSource.getRepository(BambooLike);
@@ -113,40 +149,24 @@ export class BambooService {
         id: likeDto.postId,
       });
 
-      const newLike = likeRepository.create({
-        author: foundUser,
+      const foundLike = await likeRepository.findOneBy({
         post: foundPost,
-      });
-
-      return newLike;
-    } catch (error) {
-      this.logger.warn(error.message);
-    }
-  }
-
-  async commentLike(
-    likeDto: LikeBambooDto,
-    userId: number,
-  ): Promise<BambooCommentsLike> {
-    try {
-      const userRepository = this.dataSource.getRepository(User);
-      const likeRepository = this.dataSource.getRepository(BambooCommentsLike);
-      const commentRepository = this.dataSource.getRepository(BambooComments);
-
-      const foundUser = await userRepository.findOneBy({
-        id: userId,
-      });
-
-      const foundComment = await commentRepository.findOneBy({
-        id: likeDto.postId,
-      });
-
-      const newLike = likeRepository.create({
         author: foundUser,
-        comment: foundComment,
       });
 
-      return newLike;
+      let newLike = undefined;
+
+      if (foundLike) {
+        newLike = await likeRepository.delete({ id: foundLike.id });
+      } else {
+        newLike = likeRepository.create({
+          author: foundUser,
+          post: foundPost,
+        });
+        await likeRepository.save(newLike);
+      }
+
+      return { message: 'done' };
     } catch (error) {
       this.logger.warn(error.message);
     }

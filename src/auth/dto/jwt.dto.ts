@@ -3,5 +3,5 @@ export class JwtDto {
   username: string;
   email: string;
   profile: string;
-  autority: number;
+  authority: number;
 }
