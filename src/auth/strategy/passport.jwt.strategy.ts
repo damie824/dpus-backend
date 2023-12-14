@@ -19,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: payload, done: VerifiedCallback): Promise<any> {
-    const user = await this.authService.tokenValidateUser(payload);
+    let user = await this.authService.tokenValidateUser(payload);
 
     if (!user) {
       return done(
@@ -27,6 +27,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         false,
       );
     }
-    return done(null, user);
+
+    return done(null, {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      profile: user.profile,
+      autority: user.role.autority,
+    });
   }
 }

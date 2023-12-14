@@ -10,4 +10,7 @@ export class EmailCert {
 
   @Column()
   certNumb: string;
+
+  @Column({ default: false })
+  verified: boolean;
 }

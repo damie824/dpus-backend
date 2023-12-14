@@ -1,21 +1,31 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { EmailCert } from 'src/modules/User/email.entity';
+import { DataSource } from 'typeorm';
+import { GetCodeDto } from './dto/get-code.dto';
+import { VerifyDto } from './dto/verify.dto';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger();
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    private readonly mailerService: MailerService,
+    private readonly dataSource: DataSource,
+  ) {}
 
-  async sendVerifyCode() {
-    const random = Math.floor(Math.random() * (100000 - 999999 + 1)) + 999999;
-
+  async sendVerifyCode(mailTo: string, code: number) {
     try {
       await this.mailerService
         .sendMail({
-          to: 'booboo4055@gmail.com',
+          to: mailTo,
           from: 'dpus.noreply@gmail.com',
-          subject: '이메일을 인증하세요.',
-          text: `${random}`,
+          subject: '[DPUS] 이메일을 인증해 주세요.',
           html: `<table
           width="100%"
           border="0"
@@ -47,7 +57,7 @@ export class MailService {
           </tr>
           <tr style="text-align: center; margin-top: 20px">
             <td style="width: 100%; padding: 0 20px; font-size: 13px">
-              <h2>${random}</h2>
+              <h2>${code}</h2>
             </td>
           </tr>
           <tr>
@@ -69,5 +79,73 @@ export class MailService {
     }
 
     return { mesage: 'worked' };
+  }
+
+  async createRandomNumb() {
+    const random = Math.floor(Math.random() * (100000 - 999999 + 1)) + 999999;
+    return random;
+  }
+
+  async setVerifyNumb(
+    getCodeDto: GetCodeDto,
+  ): Promise<{ message: string; generated: boolean }> {
+    const certRepository = this.dataSource.getRepository(EmailCert);
+    const certCode = await this.createRandomNumb();
+
+    await this.sendVerifyCode(getCodeDto.email, certCode);
+
+    const foundCert = await certRepository.findOneBy({
+      email: getCodeDto.email,
+    });
+
+    if (foundCert) {
+      if (foundCert.verified) {
+        throw new BadRequestException('Email already taken');
+      }
+      await certRepository.delete({
+        email: getCodeDto.email,
+      });
+    }
+
+    const newCert = certRepository.create({
+      email: getCodeDto.email,
+      certNumb: `${certCode}`,
+    });
+
+    await certRepository.save(newCert);
+    return {
+      message: 'successed',
+      generated: true,
+    };
+  }
+
+  async verifyCode(verifyDto: VerifyDto): Promise<{ verified: boolean }> {
+    try {
+      const certRepository = this.dataSource.getRepository(EmailCert);
+      const found = await certRepository.findOneBy({
+        email: verifyDto.email,
+      });
+
+      if (!found) {
+        throw new ConflictException('Email not found');
+      }
+
+      if (found.certNumb != verifyDto.code) {
+        throw new UnauthorizedException('Code not matched');
+      }
+
+      if (found.verified) {
+        throw new ConflictException('Email already verified');
+      }
+
+      await certRepository.update(
+        { email: verifyDto.email },
+        { verified: true },
+      );
+
+      return { verified: true };
+    } catch (err) {
+      this.logger.warn(err.message);
+    }
   }
 }
