@@ -19,9 +19,14 @@ import { LikeBambooDto } from './dto/like.dto';
 export class BambooController {
   constructor(private readonly bambooService: BambooService) {}
 
-  @Get('/:page')
+  @Get('/get/:page')
   async getAll(@Param('page') page: number) {
     return this.bambooService.getAll(page);
+  }
+
+  @Get('/popular')
+  async getPopular() {
+    return this.bambooService.getPopular();
   }
 
   @Get('/post/:id')

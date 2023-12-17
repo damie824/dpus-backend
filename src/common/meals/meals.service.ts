@@ -1,12 +1,12 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { logger } from 'handlebars';
 import { Meals } from 'src/modules/meals/meals.entity';
 import { DataSource } from 'typeorm';
 
 @Injectable()
 export class MealsService {
+  private logger = new Logger(MealsService.name);
   constructor(
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
@@ -14,6 +14,7 @@ export class MealsService {
 
   // 급식 정보를 가져오는 함수
   async getMeals(): Promise<{ message: string; data: any }> {
+    this.logger.log('getMeals method called');
     // 급식 레포지토리를 가져옵니다.
     const mealsRepository = this.dataSource.getRepository(Meals);
     // 현재 날짜를 가져옵니다.
@@ -28,6 +29,7 @@ export class MealsService {
 
     // 급식 정보가 없으면 API를 호출하여 정보를 가져옵니다.
     if (!foundMeals) {
+      this.logger.log('No meals found, calling API');
       // API 호출에 필요한 파라미터를 설정합니다.
       const params = {
         KEY: this.configService.get<string>('NEIS_API_KEY'),

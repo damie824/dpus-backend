@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, MoreThanOrEqual } from 'typeorm';
 import { PostBambooDto } from './dto/upload.dto';
 import { User } from 'src/modules/User/user.entity';
 import { BambooPost } from 'src/modules/bamboo/post.entity';
@@ -16,7 +16,7 @@ import { BambooLike } from 'src/modules/bamboo/like.entity';
 // 대나무숲 서비스
 @Injectable()
 export class BambooService {
-  private logger = new Logger('BambooService');
+  private logger = new Logger(BambooService.name);
   constructor(private readonly dataSource: DataSource) {}
 
   // 모든 대나무숲 게시물 가져오기
@@ -29,6 +29,56 @@ export class BambooService {
       },
       skip: pageNumb * 8,
       take: 8,
+    });
+
+    // 현재 시간 가져오기
+    const now = new Date();
+
+    // 각 대나무 게시물의 생성 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환
+    bamboos = bamboos.map((bamboo) => {
+      const diffTime = Math.abs(now.getTime() - bamboo.createdAt.getTime());
+      const diffMinutes = Math.floor(diffTime / (1000 * 60));
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      let timeAgo: string;
+
+      if (diffMinutes < 2) {
+        timeAgo = '방금 전';
+      } else if (diffMinutes < 60) {
+        timeAgo = `${diffMinutes}분 전`;
+      } else if (diffHours < 24) {
+        timeAgo = `${diffHours}시간 전`;
+      } else if (diffDays < 2) {
+        timeAgo = '1일 전';
+      } else if (diffDays < 8) {
+        timeAgo = `${diffDays}일 전`;
+      } else if (diffDays < 31) {
+        timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
+      } else {
+        timeAgo = `${Math.floor(diffDays / 30)}달 전`;
+      }
+
+      return { ...bamboo, timeAgo };
+    });
+
+    return bamboos;
+  }
+
+  //인기있는 개시글들을 가져옵니다.
+  async getPopular() {
+    this.logger.log(`Get popular bomboo posts`);
+    const bambooRepository = this.dataSource.getRepository(BambooPost);
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    let bamboos = await bambooRepository.find({
+      where: {
+        createdAt: MoreThanOrEqual(oneWeekAgo),
+      },
+      take: 8,
+      skip: 0,
+      order: {
+        viewd: 'DESC',
+      },
     });
 
     // 현재 시간 가져오기

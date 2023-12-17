@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './common/mail/mail.module';
 import { BambooModule } from './common/bamboo/bamboo.module';
 import { MealsModule } from './common/meals/meals.module';
+import { CommunityModule } from './common/community/community.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,6 +23,7 @@ import { MealsModule } from './common/meals/meals.module';
     MailModule,
     BambooModule,
     MealsModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [AppService],
