@@ -6,8 +6,8 @@ export class Meals {
   id: number;
 
   @Column()
-  date: string;
+  date: Date;
 
-  @Column()
-  data: string;
+  @Column('text', { array: true })
+  data: string[];
 }

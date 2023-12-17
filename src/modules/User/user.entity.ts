@@ -41,7 +41,10 @@ export class User {
   @Column()
   password: string;
 
-  @Column({ default: '' })
+  @Column({
+    default:
+      'https://jtyebkumzywcvsnkcwki.supabase.co/storage/v1/object/sign/Profiles/default.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJQcm9maWxlcy9kZWZhdWx0LnBuZyIsImlhdCI6MTcwMjczOTk1MCwiZXhwIjozMTcwMzEyMDM5NTB9.kt2doNCaJF2lo4MEqF4gwbNYJaNkvQ6xjNaJauwazmk&t=2023-12-16T15%3A19%3A12.813Z',
+  })
   profile: string;
 
   @Column({ default: '' })

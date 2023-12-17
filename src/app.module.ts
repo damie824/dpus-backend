@@ -7,6 +7,7 @@ import { TypeOrmConfigService } from './providers/database/typeorm.service';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './common/mail/mail.module';
 import { BambooModule } from './common/bamboo/bamboo.module';
+import { MealsModule } from './common/meals/meals.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +21,7 @@ import { BambooModule } from './common/bamboo/bamboo.module';
     AuthModule,
     MailModule,
     BambooModule,
+    MealsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

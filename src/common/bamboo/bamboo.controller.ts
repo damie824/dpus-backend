@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Post,
   Req,
@@ -24,8 +25,12 @@ export class BambooController {
   }
 
   @Get('/post/:id')
-  async getPost(@Param('id') id: number) {
-    return this.bambooService.getBamboo(id);
+  async getPost(@Param('id') id: string) {
+    if (isNaN(Number(id))) {
+      throw new NotFoundException('Invalid ID');
+    }
+    const numericId = Number(id);
+    return this.bambooService.getBamboo(numericId);
   }
 
   @Post('/upload')

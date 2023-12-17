@@ -15,6 +15,9 @@ export class BambooComments {
   id: number;
 
   @Column()
+  createdAt: Date;
+
+  @Column()
   contents: string;
 
   @Column({ nullable: true })

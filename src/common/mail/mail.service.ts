@@ -10,16 +10,20 @@ import { EmailCert } from 'src/modules/User/email.entity';
 import { DataSource } from 'typeorm';
 import { GetCodeDto } from './dto/get-code.dto';
 import { VerifyDto } from './dto/verify.dto';
+import { User } from 'src/modules/User/user.entity';
 
+// 이메일 서비스 클래스
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger();
+  private readonly logger = new Logger(MailService.name);
   constructor(
     private readonly mailerService: MailerService,
     private readonly dataSource: DataSource,
   ) {}
 
+  // 이메일 인증 코드를 보내는 함수
   async sendVerifyCode(mailTo: string, code: number) {
+    this.logger.log(`Sending verification code to ${mailTo}`);
     try {
       await this.mailerService
         .sendMail({
@@ -72,25 +76,37 @@ export class MailService {
         `,
         })
         .then((result) => {
+          this.logger.log(`Verification code sent to ${mailTo}`);
           return { message: 'done' };
         });
     } catch (error) {
-      this.logger.warn(error.message);
+      this.logger.error(`Failed to send verification code to ${mailTo}: ${error.message}`);
     }
 
     return { mesage: 'worked' };
   }
 
+  // 랜덤 숫자를 생성하는 함수
   async createRandomNumb() {
     const random = Math.floor(Math.random() * (100000 - 999999 + 1)) + 999999;
+    this.logger.log(`Random number generated: ${random}`);
     return random;
   }
 
+  // 인증 번호를 설정하는 함수
   async setVerifyNumb(
     getCodeDto: GetCodeDto,
   ): Promise<{ message: string; generated: boolean }> {
     const certRepository = this.dataSource.getRepository(EmailCert);
+    const userRepository = this.dataSource.getRepository(User);
     const certCode = await this.createRandomNumb();
+
+    const foundUser = await userRepository.findOneBy({ email: getCodeDto.email });
+
+    if (foundUser) {
+      this.logger.warn(`Email already taken: ${getCodeDto.email}`);
+      throw new ConflictException('Email already taken');
+    }
 
     await this.sendVerifyCode(getCodeDto.email, certCode);
 
@@ -99,9 +115,6 @@ export class MailService {
     });
 
     if (foundCert) {
-      if (foundCert.verified) {
-        throw new BadRequestException('Email already taken');
-      }
       await certRepository.delete({
         email: getCodeDto.email,
       });
@@ -113,39 +126,33 @@ export class MailService {
     });
 
     await certRepository.save(newCert);
+    this.logger.log(`Verification number set for ${getCodeDto.email}`);
     return {
       message: 'successed',
       generated: true,
     };
   }
 
+  // 인증 코드를 검증하는 함수
   async verifyCode(verifyDto: VerifyDto): Promise<{ verified: boolean }> {
-    try {
-      const certRepository = this.dataSource.getRepository(EmailCert);
-      const found = await certRepository.findOneBy({
-        email: verifyDto.email,
-      });
-
-      if (!found) {
-        throw new ConflictException('Email not found');
-      }
-
-      if (found.certNumb != verifyDto.code) {
-        throw new UnauthorizedException('Code not matched');
-      }
-
-      if (found.verified) {
-        throw new ConflictException('Email already verified');
-      }
-
-      await certRepository.update(
-        { email: verifyDto.email },
-        { verified: true },
-      );
-
-      return { verified: true };
-    } catch (err) {
-      this.logger.warn(err.message);
+    const certRepository = this.dataSource.getRepository(EmailCert);
+    const found = await certRepository.findOneBy({
+      email: verifyDto.email,
+    });
+    if (!found) {
+      this.logger.warn(`Email not found: ${verifyDto.email}`);
+      throw new ConflictException('Email not found');
     }
+
+    this.logger.log(`Verify tried by ${verifyDto.email}`);
+
+    if (found.certNumb !== verifyDto.code) {
+      this.logger.warn(`Code not matched for ${verifyDto.email}`);
+      throw new UnauthorizedException('Code not matched');
+    }
+
+    await certRepository.update({ email: verifyDto.email }, { verified: true });
+    this.logger.log(`Verification successful for ${verifyDto.email}`);
+    return { verified: true };
   }
 }

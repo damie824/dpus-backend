@@ -21,6 +21,9 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       entities: [__dirname + '/../../**/**/*.entity.{js,ts}'],
       //데이터 동기화 설정
       synchronize: true,
+      extra: {
+        timezone: 'Asia/Seoul',
+      },
     };
   }
 }
