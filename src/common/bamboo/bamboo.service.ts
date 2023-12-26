@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,12 +17,40 @@ import { BambooLike } from 'src/modules/bamboo/like.entity';
 // 대나무숲 서비스
 @Injectable()
 export class BambooService {
-  private logger = new Logger(BambooService.name);
+  private logger = new Logger('BambooService');
   constructor(private readonly dataSource: DataSource) {}
+
+  // 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환하는 함수
+  private getTimeAgo(date: Date): string {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    let timeAgo: string;
+
+    if (diffMinutes < 2) {
+      timeAgo = '방금 전';
+    } else if (diffMinutes < 60) {
+      timeAgo = `${diffMinutes}분 전`;
+    } else if (diffHours < 24) {
+      timeAgo = `${diffHours}시간 전`;
+    } else if (diffDays < 2) {
+      timeAgo = '1일 전';
+    } else if (diffDays < 8) {
+      timeAgo = `${diffDays}일 전`;
+    } else if (diffDays < 31) {
+      timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
+    } else {
+      timeAgo = `${Math.floor(diffDays / 30)}달 전`;
+    }
+
+    return timeAgo;
+  }
 
   // 모든 대나무숲 게시물 가져오기
   async getAll(pageNumb: number): Promise<BambooPost[]> {
-    this.logger.log(`getAll method called with page number: ${pageNumb}`);
+    this.logger.log('getAll method called with page number: ' + pageNumb);
     const bambooRepository = this.dataSource.getRepository(BambooPost);
     let bamboos = await bambooRepository.find({
       order: {
@@ -31,33 +60,9 @@ export class BambooService {
       take: 8,
     });
 
-    // 현재 시간 가져오기
-    const now = new Date();
-
     // 각 대나무 게시물의 생성 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환
     bamboos = bamboos.map((bamboo) => {
-      const diffTime = Math.abs(now.getTime() - bamboo.createdAt.getTime());
-      const diffMinutes = Math.floor(diffTime / (1000 * 60));
-      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      let timeAgo: string;
-
-      if (diffMinutes < 2) {
-        timeAgo = '방금 전';
-      } else if (diffMinutes < 60) {
-        timeAgo = `${diffMinutes}분 전`;
-      } else if (diffHours < 24) {
-        timeAgo = `${diffHours}시간 전`;
-      } else if (diffDays < 2) {
-        timeAgo = '1일 전';
-      } else if (diffDays < 8) {
-        timeAgo = `${diffDays}일 전`;
-      } else if (diffDays < 31) {
-        timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
-      } else {
-        timeAgo = `${Math.floor(diffDays / 30)}달 전`;
-      }
-
+      const timeAgo = this.getTimeAgo(bamboo.createdAt);
       return { ...bamboo, timeAgo };
     });
 
@@ -66,7 +71,7 @@ export class BambooService {
 
   //인기있는 개시글들을 가져옵니다.
   async getPopular() {
-    this.logger.log(`Get popular bomboo posts`);
+    this.logger.log('Get popular bomboo posts');
     const bambooRepository = this.dataSource.getRepository(BambooPost);
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -74,40 +79,16 @@ export class BambooService {
       where: {
         createdAt: MoreThanOrEqual(oneWeekAgo),
       },
-      take: 8,
+      take: 4,
       skip: 0,
       order: {
         viewd: 'DESC',
       },
     });
 
-    // 현재 시간 가져오기
-    const now = new Date();
-
     // 각 대나무 게시물의 생성 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환
     bamboos = bamboos.map((bamboo) => {
-      const diffTime = Math.abs(now.getTime() - bamboo.createdAt.getTime());
-      const diffMinutes = Math.floor(diffTime / (1000 * 60));
-      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      let timeAgo: string;
-
-      if (diffMinutes < 2) {
-        timeAgo = '방금 전';
-      } else if (diffMinutes < 60) {
-        timeAgo = `${diffMinutes}분 전`;
-      } else if (diffHours < 24) {
-        timeAgo = `${diffHours}시간 전`;
-      } else if (diffDays < 2) {
-        timeAgo = '1일 전';
-      } else if (diffDays < 8) {
-        timeAgo = `${diffDays}일 전`;
-      } else if (diffDays < 31) {
-        timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
-      } else {
-        timeAgo = `${Math.floor(diffDays / 30)}달 전`;
-      }
-
+      const timeAgo = this.getTimeAgo(bamboo.createdAt);
       return { ...bamboo, timeAgo };
     });
 
@@ -116,7 +97,7 @@ export class BambooService {
 
   // 특정 대나무숲 게시물 가져오기
   async getBamboo(id: number) {
-    this.logger.log(`getBamboo method called with id: ${id}`);
+    this.logger.log('getBamboo method called with id: ' + id);
     const bambooRepository = this.dataSource.getRepository(BambooPost);
     const userRepository = this.dataSource.getRepository(User);
     const commentRepository = this.dataSource.getRepository(BambooComments);
@@ -143,7 +124,6 @@ export class BambooService {
 
     let comments = await commentRepository.find({
       relations: {
-        post: true,
         author: true,
       },
       where: {
@@ -166,59 +146,12 @@ export class BambooService {
       },
     );
 
-    // 현재 시간 가져오기
-    const now = new Date();
-
     // 대나무 게시물의 생성 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환
-    const diffTime = Math.abs(
-      now.getTime() - currentBamboo.createdAt.getTime(),
-    );
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    let timeAgo: string;
-
-    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-    const diffMinutes = Math.ceil(diffTime / (1000 * 60));
-
-    if (diffMinutes < 2) {
-      timeAgo = '방금 전';
-    } else if (diffMinutes < 60) {
-      timeAgo = `${diffMinutes}분 전`;
-    } else if (diffHours < 24) {
-      timeAgo = `${diffHours}시간 전`;
-    } else if (diffDays < 2) {
-      timeAgo = '1일 전';
-    } else if (diffDays < 8) {
-      timeAgo = `${diffDays}일 전`;
-    } else if (diffDays < 31) {
-      timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
-    } else {
-      timeAgo = `${Math.floor(diffDays / 30)}달 전`;
-    }
+    const timeAgo = this.getTimeAgo(currentBamboo.createdAt);
 
     // 댓글의 생성 시간을 "1일 전", "1주일 전", "1달 전" 등으로 변환
     comments = comments.map((comment) => {
-      const diffTime = Math.abs(now.getTime() - comment.createdAt.getTime());
-      const diffMinutes = Math.ceil(diffTime / (1000 * 60));
-      const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      let timeAgo: string;
-
-      if (diffMinutes < 2) {
-        timeAgo = '방금 전';
-      } else if (diffMinutes < 60) {
-        timeAgo = `${diffMinutes}분 전`;
-      } else if (diffHours < 24) {
-        timeAgo = `${diffHours}시간 전`;
-      } else if (diffDays < 2) {
-        timeAgo = '1일 전';
-      } else if (diffDays < 8) {
-        timeAgo = `${diffDays}일 전`;
-      } else if (diffDays < 31) {
-        timeAgo = `${Math.floor(diffDays / 7)}주일 전`;
-      } else {
-        timeAgo = `${Math.floor(diffDays / 30)}달 전`;
-      }
-
+      const timeAgo = this.getTimeAgo(comment.createdAt);
       return { ...comment, timeAgo };
     });
 
@@ -237,7 +170,7 @@ export class BambooService {
     uploadDto: PostBambooDto,
     userId: number,
   ): Promise<{ message: string }> {
-    this.logger.log(`uploadPost method called with userId: ${userId}`);
+    this.logger.log('uploadPost method called with userId: ' + userId);
     try {
       const userRepository = this.dataSource.getRepository(User);
       const bambooRepository = this.dataSource.getRepository(BambooPost);
@@ -258,7 +191,7 @@ export class BambooService {
 
       return { message: 'done.' };
     } catch (error) {
-      this.logger.warn(`uploadPost method error: ${error.message}`);
+      this.logger.warn('uploadPost method error: ' + error.message);
     }
   }
 
@@ -268,7 +201,7 @@ export class BambooService {
     userId: number,
     parent?: number,
   ): Promise<{ message: string }> {
-    this.logger.log(`commentBamboo method called with userId: ${userId}`);
+    this.logger.log('commentBamboo method called with userId: ' + userId);
     try {
       const bambooRepository = this.dataSource.getRepository(BambooPost);
       const commentRepository = this.dataSource.getRepository(BambooComments);
@@ -298,7 +231,7 @@ export class BambooService {
 
       return { message: 'done' };
     } catch (error) {
-      this.logger.warn(`commentBamboo method error: ${error.message}`);
+      this.logger.warn('commentBamboo method error: ' + error.message);
     }
   }
 
@@ -307,7 +240,7 @@ export class BambooService {
     likeDto: LikeBambooDto,
     userId: number,
   ): Promise<{ message: string }> {
-    this.logger.log(`like method called with userId: ${userId}`);
+    this.logger.log('like method called with userId: ' + userId);
     try {
       const userRepository = this.dataSource.getRepository(User);
       const likeRepository = this.dataSource.getRepository(BambooLike);
@@ -340,7 +273,8 @@ export class BambooService {
 
       return { message: 'done' };
     } catch (error) {
-      this.logger.warn(`like method error: ${error.message}`);
+      this.logger.warn('like method error: ' + error.message);
+      throw new InternalServerErrorException(error.message);
     }
   }
 }

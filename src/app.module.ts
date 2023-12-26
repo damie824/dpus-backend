@@ -9,6 +9,8 @@ import { MailModule } from './common/mail/mail.module';
 import { BambooModule } from './common/bamboo/bamboo.module';
 import { MealsModule } from './common/meals/meals.module';
 import { CommunityModule } from './common/community/community.module';
+import { LostModule } from './common/lost/lost.module';
+import { SupabaseModule } from './providers/supabase/supabase.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,6 +26,8 @@ import { CommunityModule } from './common/community/community.module';
     BambooModule,
     MealsModule,
     CommunityModule,
+    LostModule,
+    SupabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -50,6 +50,8 @@ export class MealsService {
 
       let dishes = [];
 
+      console.log(response.data?.RESULT);
+
       // API 응답을 처리합니다.
       if (response.data?.RESULT?.CODE === 'INFO-200') {
         dishes.push('Not Founded');
